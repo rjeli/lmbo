@@ -1,9 +1,10 @@
 #version 330 core
 
-in vec2 position;
+in vec3 position;
 in vec2 texcoord;
 
 uniform float time;
+uniform vec4 mvp;
 
 out vec2 Texcoord;
 
