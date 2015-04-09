@@ -21,11 +21,18 @@ GLuint texColorBuffer;
 GLint uniTextColor;
 GLint uniModel;
 
+GLint fbModel;
+
 GLint uniFBTime;
 GLuint tex;
 
+GLuint frameBuffer;
+
 FT_Face face;
 FT_GlyphSlot g;
+
+kmMat4 view;
+kmMat4 proj;
 
 const GLfloat cubeVertices[] = {
 	-0.5f, -0.5f, -0.5f, 0.5f, 0.7f, 0.3f, 
@@ -72,13 +79,13 @@ const GLfloat cubeVertices[] = {
 };
 
 GLfloat quadVertices[] = {
-	-0.5f,  0.5f,  0.0f, 0.0f, 1.0f,
-	 0.5f,  0.5f,  0.0f, 1.0f, 1.0f,
-	 0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
+	-1.66f,  0.5f,  0.0f, 0.0f, 1.0f,
+	 1.66f,  0.5f,  0.0f, 1.0f, 1.0f,
+	 1.66f, -0.5f,  0.0f, 1.0f, 0.0f,
 
-	 0.5f, -0.5f,  0.0f, 1.0f, 0.0f,
-	-0.5f, -0.5f,  0.0f, 0.0f, 0.0f,
-	-0.5f,  0.5f,  0.0f, 0.0f, 1.0f
+	 1.66f, -0.5f,  0.0f, 1.0f, 0.0f,
+	-1.66f, -0.5f,  0.0f, 0.0f, 0.0f,
+	-1.66f,  0.5f,  0.0f, 0.0f, 1.0f
 };
 
 char *
@@ -240,18 +247,17 @@ initializeWorldRenderer()
 	GLint uniView = glGetUniformLocation(worldShaderProgram, "view");
 	GLint uniProj = glGetUniformLocation(worldShaderProgram, "proj");
 
-	kmMat4 view;
 	kmMat4LookAt(&view, 
 			/* Camera */
-			&(kmVec3){1.2f, 1.2f, 1.2f}, 
+			&(kmVec3){0.0f, -0.5f, 3.0f}, 
 			/* Center */
 			&(kmVec3){0.0f, 0.0f, 0.0f}, 
 			/* Up */
 			&(kmVec3){0.0f, 0.0f, 1.0f});
 
 	glUniformMatrix4fv(uniView, 1, GL_FALSE, view.mat);
-	kmMat4 proj;
 	kmMat4PerspectiveProjection(&proj, 45.0f, 800.0f / 600.0f, 1.0f, 10.0f);
+
 	glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.mat);
 }
 
@@ -337,12 +343,16 @@ initializeFramebuffer()
 	glEnableVertexAttribArray(fbtexAttrib);
 	glVertexAttribPointer(fbtexAttrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *)(3 * sizeof(GLfloat)));
 
+	GLint uniProj = glGetUniformLocation(fbProgram, "proj");
+	GLint uniView = glGetUniformLocation(fbProgram, "view");
+	fbModel = glGetUniformLocation(fbProgram, "model");
 	uniFBTime = glGetUniformLocation(fbProgram, "time");
 
+	glUniformMatrix4fv(uniView, 1, GL_FALSE, view.mat);
+	glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.mat);
 	glUniform1i(glGetUniformLocation(fbProgram, "texFramebuffer"), 0);
 
 	/* Create frame buffer */
-	GLuint frameBuffer;
 	glGenFramebuffers(1, &frameBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 
@@ -372,8 +382,5 @@ initializeFramebuffer()
 
   glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-	renderText("Hello! I'm on a Framebuffer.", -1, 1 - 50.0 * sy, sx, sy);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

@@ -4,12 +4,14 @@ in vec3 position;
 in vec2 texcoord;
 
 uniform float time;
-uniform vec4 mvp;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 proj;
 
 out vec2 Texcoord;
 
 void main()
 {
 	Texcoord = texcoord;
-	gl_Position = vec4(position.x, position.y + 0.1 * sin(time + position.x), 0.0, 1.0);
+	gl_Position = proj * view * model * vec4(position, 1.0);
 }

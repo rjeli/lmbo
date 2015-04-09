@@ -1,0 +1,12 @@
+Mmain	main.c	/^main()$/
+Panel	main.c	/^} Panel;$/
+PanelArray	main.c	/^} PanelArray;$/
+checkShaderError	render.c	/^checkShaderError(GLuint shader)$/
+initPanelArray	main.c	/^PanelArray initPanelArray()$/
+initializeContext	render.c	/^initializeContext()$/
+initializeFramebuffer	render.c	/^initializeFramebuffer()$/
+initializeTextRenderer	render.c	/^initializeTextRenderer()$/
+initializeWorldRenderer	render.c	/^initializeWorldRenderer()$/
+loadShaders	render.c	/^loadShaders(const char *vertFile, const char *frag/
+loadTextFileIntoString	render.c	/^loadTextFileIntoString(const char *filename)$/
+renderText	render.c	/^renderText(const char *text, float x, float y, flo/

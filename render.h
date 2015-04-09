@@ -27,9 +27,11 @@ extern GLuint texColorBuffer;
 
 extern GLint uniTextColor;
 extern GLint uniModel;
+extern GLint fbModel;
 
 extern GLint uniFBTime;
 extern GLuint tex;
+extern GLuint frameBuffer;
 
 extern FT_Face face;
 extern FT_GlyphSlot g;

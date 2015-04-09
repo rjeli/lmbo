@@ -9,6 +9,7 @@
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <chicken.h>
 #include <stdbool.h>
@@ -25,32 +26,78 @@
 typedef struct 
 {
 	kmMat4 model;
-	char text[1024];
+	char text[4096];
+	int cursor;
+	float x, y, z;
+	float rotation;
 } Panel;
 
 typedef struct 
 {
-	int *array;
-	size_t used;
-	size_t size;
+	Panel *array;
+	int used;
+	int size;
 } PanelArray;
 
-PanelArray initPanelArray()
+PanelArray 
+initPanelArray()
 {
-	PanelArray a;
-	a.array = malloc(4 * sizeof(Panel));
-	a.used = 0;
-	a.size = 4;
-	return a;
+	PanelArray pa;
+	pa.array = malloc(4 * sizeof(Panel));
+	pa.used = 0;
+	pa.size = 4;
+	return pa;
+}
+
+Panel *
+addPanel(PanelArray *pa)
+{
+	if (pa->used == pa->size) {
+		int newsize = pa->size * 2;
+		pa->array = realloc(pa->array, newsize);
+		pa->size = newsize;
+	}
+	return pa->array + (pa->used)++;
+}
+
+void
+removePanel(PanelArray *pa, int index)
+{
+	for (; index < (int)pa->used - 1; index++)
+		pa->array[index] = pa->array[index + 1];
+	(pa->used)--;
+}
+
+void
+testPanels()
+{
+	PanelArray pa = initPanelArray();
+	assert(pa.size == 4);
+	assert(pa.used == 0);
+
+	Panel *p1 = addPanel(&pa);
+	assert(pa.size == 4);
+	assert(pa.used == 1);
+
+	Panel *p2 = addPanel(&pa);
+	assert(pa.size == 4);
+	assert(pa.used == 2);
+
+	removePanel(&pa, 0);
+	assert(pa.size == 4);
+	assert(pa.used == 1);
 }
 
 extern void keyCallback(GLFWwindow *, int, int, int, int);
 
+char *FBBUFFER;
+
 static kmMat4 model;
 
-int
+int 
 main()
 {
+	testPanels();
 	/* variables for rendering */
 	GLFWwindow *window;
 	float now, sx, sy;
@@ -67,6 +114,14 @@ main()
 		.fd = STDIN_FILENO,
 		.events = POLLIN | POLLRDBAND | POLLRDNORM | POLLPRI 
 	};
+
+	Panel *firstPanel = addPanel(&PANELS);
+	firstPanel->x = 0.0;
+	firstPanel->y = 0.0;
+	firstPanel->z = 0.0;
+	firstPanel->rotation = 0.0;
+	strcpy(firstPanel->text, "it's me!");
+	FBBUFFER = firstPanel->text;
 
 	CHICKEN_run((void *)C_toplevel);
 
@@ -90,10 +145,11 @@ main()
 	initializeTextRenderer();
 	initializeFramebuffer();
 
+	//kmMat4RotationAxisAngle(&firstPanel->model, &(kmVec3){0.0f, 0.0f, 1.0f}, firstPanel->rotation);
+	kmMat4Translation(&firstPanel->model, firstPanel->x, firstPanel->y, firstPanel->z);
+
 	printf("> ");
 	fflush(stdout);
-
-  glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
 	while (!glfwWindowShouldClose(window)) {
 		now = glfwGetTime();
@@ -112,6 +168,7 @@ main()
 			fflush(stdout);
 		}
 
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		/* Draw the world */
@@ -129,13 +186,24 @@ main()
 		sx = 2.0 / 800.0;
 		sy = 2.0 / 600.0;
 
-		char output;
+		char *output;
 		if((int)now % 2)
-			output = 'A';
+			output = "A";
 		else
-			output = 'B';
+			output = "B";
 
-		renderText(&output, -1 + 8 * sx, 0.5 - 50 * sy, sx, sy);
+		renderText(output, -1 + 8 * sx, 0.5 - 50 * sy, sx, sy);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		sx = 2.0 / 2300.0;
+		sy = 2.0 / 600.0;
+
+		renderText(firstPanel->text, -1, 1 - 50.0 * sy, sx, sy);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		/* Draw framebuffer */
 		glUseProgram(fbProgram);
@@ -144,10 +212,24 @@ main()
 
 		glUniform1f(uniFBTime, now);
 
+		GL_CHECK_ERROR();
+
+		kmMat4 fbmodelmat;
+
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texColorBuffer);
 
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+		int i;
+		for (i = 0; i < PANELS.used; i++) {
+			glUniformMatrix4fv(fbModel, 1, GL_FALSE, PANELS.array[i].model.mat);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		}
+
+		//kmMat4RotationAxisAngle(&fbmodelmat, &(kmVec3){0.0f, 0.0f, 1.0f}, now + 0.5);
+
+		//glUniformMatrix4fv(fbModel, 1, GL_FALSE, fbmodelmat.mat);
+
+		//glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		GL_CHECK_ERROR();
 		glUseProgram(0);
