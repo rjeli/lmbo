@@ -1,5 +1,4 @@
 /*
- * A 3D Workspace
  * Written by Eli Riggs 2014
  * Released under the 3-clause BSD License
  */
@@ -11,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <chicken.h>
 #include <stdbool.h>
 #include <kazmath/kazmath.h>
 #include <ft2build.h>
@@ -68,27 +66,14 @@ removePanel(PanelArray *pa, int index)
 	(pa->used)--;
 }
 
-void
-testPanels()
+void 
+keyCallback(GLFWwindow *win, int key, int scancode, int action, int mods)
 {
-	PanelArray pa = initPanelArray();
-	assert(pa.size == 4);
-	assert(pa.used == 0);
-
-	Panel *p1 = addPanel(&pa);
-	assert(pa.size == 4);
-	assert(pa.used == 1);
-
-	Panel *p2 = addPanel(&pa);
-	assert(pa.size == 4);
-	assert(pa.used == 2);
-
-	removePanel(&pa, 0);
-	assert(pa.size == 4);
-	assert(pa.used == 1);
+	if (action == GLFW_PRESS)
+		printf("pressed key %c\n", key);
+	else if (action == GLFW_RELEASE)
+		printf("released key %c\n", key);
 }
-
-extern void keyCallback(GLFWwindow *, int, int, int, int);
 
 char *FBBUFFER;
 
@@ -97,23 +82,12 @@ static kmMat4 model;
 int 
 main()
 {
-	testPanels();
 	/* variables for rendering */
 	GLFWwindow *window;
 	float now, sx, sy;
 	PanelArray PANELS = initPanelArray();
 
-	/* Buffers for the scheme REPL */
-	char replbuf[512];
-	char replresultbuf[512];
-	int status;
-
 	FT_Library ft;
-
-	struct pollfd stdin_poll = { 
-		.fd = STDIN_FILENO,
-		.events = POLLIN | POLLRDBAND | POLLRDNORM | POLLPRI 
-	};
 
 	Panel *firstPanel = addPanel(&PANELS);
 	firstPanel->x = 0.0;
@@ -122,8 +96,6 @@ main()
 	firstPanel->rotation = 0.0;
 	strcpy(firstPanel->text, "it's me!");
 	FBBUFFER = firstPanel->text;
-
-	CHICKEN_run((void *)C_toplevel);
 
 	/* Initialize FreeType library */
 	if (FT_Init_FreeType(&ft)) {
@@ -148,25 +120,9 @@ main()
 	//kmMat4RotationAxisAngle(&firstPanel->model, &(kmVec3){0.0f, 0.0f, 1.0f}, firstPanel->rotation);
 	kmMat4Translation(&firstPanel->model, firstPanel->x, firstPanel->y, firstPanel->z);
 
-	printf("> ");
-	fflush(stdout);
-
 	while (!glfwWindowShouldClose(window)) {
 		now = glfwGetTime();
 		glfwPollEvents();
-
-		/* Check for REPL input */
-		if (poll(&stdin_poll, 1, 0) == 1) {
-			fgets(replbuf, 511, stdin);
-			status = CHICKEN_eval_string_to_string(replbuf, replresultbuf, 511);
-			if (status) {
-				printf("%s\n> ", replresultbuf);
-			} else {
-				CHICKEN_get_error_message(replresultbuf, 511);
-				printf("err: %s", replresultbuf);
-			}
-			fflush(stdout);
-		}
 
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -214,8 +170,6 @@ main()
 
 		GL_CHECK_ERROR();
 
-		kmMat4 fbmodelmat;
-
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texColorBuffer);
 
@@ -224,12 +178,6 @@ main()
 			glUniformMatrix4fv(fbModel, 1, GL_FALSE, PANELS.array[i].model.mat);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
-
-		//kmMat4RotationAxisAngle(&fbmodelmat, &(kmVec3){0.0f, 0.0f, 1.0f}, now + 0.5);
-
-		//glUniformMatrix4fv(fbModel, 1, GL_FALSE, fbmodelmat.mat);
-
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		GL_CHECK_ERROR();
 		glUseProgram(0);
