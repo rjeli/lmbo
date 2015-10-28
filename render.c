@@ -196,7 +196,7 @@ initializeTextRenderer()
 	glGenBuffers(1, &textvbo);
 
 	GLuint textVertShader, textFragShader;
-	loadShaders("shaders/text.vert", "shaders/text.frag", &textVertShader, &textFragShader, &textShaderProgram);
+	loadShaders("text.vert", "text.frag", &textVertShader, &textFragShader, &textShaderProgram);
 	glUseProgram(textShaderProgram);
 
 	glBindVertexArray(textvao);
@@ -227,7 +227,7 @@ initializeWorldRenderer()
 	glGenBuffers(1, &worldvbo);
 
 	GLuint vertexShader, fragShader;
-	loadShaders("shaders/world.vert", "shaders/world.frag", &vertexShader, &fragShader, &worldShaderProgram);
+	loadShaders("world.vert", "world.frag", &vertexShader, &fragShader, &worldShaderProgram);
 	glUseProgram(worldShaderProgram);
 
 	glBindBuffer(GL_ARRAY_BUFFER, worldvbo);
@@ -330,7 +330,7 @@ initializeFramebuffer()
 
 	glGenVertexArrays(1, &fbvao);
 
-	loadShaders("shaders/fb.vert", "shaders/fb.frag", &fbVertShader, &fbFragShader, &fbProgram);
+	loadShaders("fb.vert", "fb.frag", &fbVertShader, &fbFragShader, &fbProgram);
 	glUseProgram(fbProgram);
 
 	glBindVertexArray(fbvao);
