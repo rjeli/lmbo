@@ -7,13 +7,14 @@
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <string.h>
 
 #include "macros.h"
 
 GLuint worldvbo, textvbo;
-GLuint worldvao, textvao, fbvao;
+GLuint world_vao, textvao, fbvao;
 GLuint textShaderProgram;
-GLuint worldShaderProgram;
+GLuint world_shader_program;
 GLuint fbProgram;
 
 GLuint texColorBuffer;
@@ -34,7 +35,7 @@ FT_GlyphSlot g;
 kmMat4 view;
 kmMat4 proj;
 
-const GLfloat cubeVertices[] = {
+GLfloat cubeVertices[] = {
 	-0.5f, -0.5f, -0.5f, 0.5f, 0.7f, 0.3f, 
 	0.5f, -0.5f, -0.5f,  0.5f, 0.7f, 0.3f, 
 	0.5f,  0.5f, -0.5f,  0.5f, 0.7f, 0.3f, 
@@ -89,7 +90,7 @@ GLfloat quadVertices[] = {
 };
 
 char *
-loadTextFileIntoString(const char *filename)
+loadTextFileIntoString(char *filename)
 {
 	char *text = malloc(2048 * sizeof(char));
 	FILE *fp = fopen(filename, "r");
@@ -124,10 +125,16 @@ checkShaderError(GLuint shader)
 }
 
 void 
-loadShaders(const char *vertFile, const char *fragFile, GLuint *vs, GLuint *fs, GLuint *s)
+loadShaders(char *vertFile, char *fragFile, GLuint *vs, GLuint *fs, GLuint *s)
 {
-	const char *vertexSource = loadTextFileIntoString(vertFile);
-	const char *fragSource = loadTextFileIntoString(fragFile);
+	char *prefixed_file = malloc(512 * sizeof(char));
+	char *offset = stpcpy(prefixed_file, "glsl/");
+
+	strcpy(offset, vertFile);
+	char *vertexSource = loadTextFileIntoString(prefixed_file);
+
+	strcpy(offset, fragFile);
+	char *fragSource = loadTextFileIntoString(prefixed_file);
 
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &vertexSource, NULL);
@@ -139,23 +146,24 @@ loadShaders(const char *vertFile, const char *fragFile, GLuint *vs, GLuint *fs, 
 	glCompileShader(fragShader);
 	checkShaderError(fragShader);
 
-	GLuint worldShaderProgram = glCreateProgram();
-	glAttachShader(worldShaderProgram, vertexShader);
-	glAttachShader(worldShaderProgram, fragShader);
+	GLuint world_shader_program = glCreateProgram();
+	glAttachShader(world_shader_program, vertexShader);
+	glAttachShader(world_shader_program, fragShader);
 
-	glBindFragDataLocation(worldShaderProgram, 0, "outColor");
-	glLinkProgram(worldShaderProgram);
+	glBindFragDataLocation(world_shader_program, 0, "outColor");
+	glLinkProgram(world_shader_program);
 
-	free((void *)vertexSource);
-	free((void *)fragSource);
+	free(vertexSource);
+	free(fragSource);
+	free(prefixed_file);
 
 	*vs = vertexShader;
 	*fs = fragShader;
-	*s = worldShaderProgram;
+	*s = world_shader_program;
 }
 
 GLFWwindow *
-initializeContext()
+init_context()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -190,7 +198,7 @@ initializeContext()
 }
 
 void 
-initializeTextRenderer()
+init_text_renderer()
 {
 	glGenVertexArrays(1, &textvao);
 	glGenBuffers(1, &textvbo);
@@ -221,31 +229,31 @@ initializeTextRenderer()
 }
 
 void 
-initializeWorldRenderer()
+init_world_renderer()
 {
-	glGenVertexArrays(1, &worldvao);
+	glGenVertexArrays(1, &world_vao);
 	glGenBuffers(1, &worldvbo);
 
 	GLuint vertexShader, fragShader;
-	loadShaders("world.vert", "world.frag", &vertexShader, &fragShader, &worldShaderProgram);
-	glUseProgram(worldShaderProgram);
+	loadShaders("world.vert", "world.frag", &vertexShader, &fragShader, &world_shader_program);
+	glUseProgram(world_shader_program);
 
 	glBindBuffer(GL_ARRAY_BUFFER, worldvbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
 
-	glBindVertexArray(worldvao);
+	glBindVertexArray(world_vao);
 
-	GLint posAttrib = glGetAttribLocation(worldShaderProgram, "position");
+	GLint posAttrib = glGetAttribLocation(world_shader_program, "position");
 	glEnableVertexAttribArray(posAttrib);
 	glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), 0);
 
-	GLint colorAttrib = glGetAttribLocation(worldShaderProgram, "color");
+	GLint colorAttrib = glGetAttribLocation(world_shader_program, "color");
 	glEnableVertexAttribArray(colorAttrib);
 	glVertexAttribPointer(colorAttrib, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void *)(3 * sizeof(float)));
 
-	uniModel = glGetUniformLocation(worldShaderProgram, "model");
-	GLint uniView = glGetUniformLocation(worldShaderProgram, "view");
-	GLint uniProj = glGetUniformLocation(worldShaderProgram, "proj");
+	uniModel = glGetUniformLocation(world_shader_program, "model");
+	GLint uniView = glGetUniformLocation(world_shader_program, "view");
+	GLint uniProj = glGetUniformLocation(world_shader_program, "proj");
 
 	kmMat4LookAt(&view, 
 			/* Camera */
@@ -262,9 +270,9 @@ initializeWorldRenderer()
 }
 
 void 
-renderText(const char *text, float x, float y, float sx, float sy)
+render_text(char *text, float x, float y, float sx, float sy)
 {
-	const char *p;
+	char *p;
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -318,7 +326,7 @@ renderText(const char *text, float x, float y, float sx, float sy)
 }
 
 void 
-initializeFramebuffer()
+init_framebuffer()
 {
 	float sx, sy;
 	GLuint fbVertShader, fbFragShader;

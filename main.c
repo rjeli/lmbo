@@ -4,15 +4,11 @@
  * Released under the 3-clause BSD License
  */
 
-#include <assert.h>
-#include <math.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <chicken.h>
-#include <stdbool.h>
 #include <kazmath/kazmath.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -22,110 +18,48 @@
 
 #include "macros.h"
 #include "render.h"
-
-typedef struct 
-{
-	kmMat4 model;
-	char text[4096];
-	int cursor;
-	float x, y, z;
-	float rotation;
-} Panel;
-
-typedef struct 
-{
-	Panel *array;
-	int used;
-	int size;
-} PanelArray;
-
-PanelArray 
-initPanelArray()
-{
-	PanelArray pa;
-	pa.array = malloc(4 * sizeof(Panel));
-	pa.used = 0;
-	pa.size = 4;
-	return pa;
-}
-
-Panel *
-addPanel(PanelArray *pa)
-{
-	if (pa->used == pa->size) {
-		int newsize = pa->size * 2;
-		pa->array = realloc(pa->array, newsize);
-		pa->size = newsize;
-	}
-	return pa->array + (pa->used)++;
-}
-
-void
-removePanel(PanelArray *pa, int index)
-{
-	for (; index < (int)pa->used - 1; index++)
-		pa->array[index] = pa->array[index + 1];
-	(pa->used)--;
-}
-
-void
-testPanels()
-{
-	PanelArray pa = initPanelArray();
-	assert(pa.size == 4);
-	assert(pa.used == 0);
-
-	Panel *p1 = addPanel(&pa);
-	assert(pa.size == 4);
-	assert(pa.used == 1);
-
-	Panel *p2 = addPanel(&pa);
-	assert(pa.size == 4);
-	assert(pa.used == 2);
-
-	removePanel(&pa, 0);
-	assert(pa.size == 4);
-	assert(pa.used == 1);
-}
-
-extern void keyCallback(GLFWwindow *, int, int, int, int);
+#include "panel.h"
 
 char *FBBUFFER;
+extern void key_callback(GLFWwindow *, int, int, int, int);
 
 static kmMat4 model;
 
 int 
 main()
 {
-	testPanels();
 	/* variables for rendering */
 	GLFWwindow *window;
 	float now, sx, sy;
-	PanelArray PANELS = initPanelArray();
 
-	/* Buffers for the scheme REPL */
-	char replbuf[512];
-	char replresultbuf[512];
+	/* panel linked list */
+	panel *root_panel = malloc(sizeof(panel));
+	root_panel->next = NULL;
+
+	/* for the scheme REPL */
+	char repl_buf[512];
+	char repl_result_buf[512];
 	int status;
-
-	FT_Library ft;
-
 	struct pollfd stdin_poll = { 
 		.fd = STDIN_FILENO,
 		.events = POLLIN | POLLRDBAND | POLLRDNORM | POLLPRI 
 	};
 
-	Panel *firstPanel = addPanel(&PANELS);
-	firstPanel->x = 0.0;
-	firstPanel->y = 0.0;
-	firstPanel->z = 0.0;
-	firstPanel->rotation = 0.0;
-	strcpy(firstPanel->text, "it's me!");
-	FBBUFFER = firstPanel->text;
+	/* font library */
+	FT_Library ft;
 
+	panel *first_panel = add_panel(root_panel);
+	first_panel->x = 0.0;
+	first_panel->y = 0.0;
+	first_panel->z = 0.0;
+	first_panel->rotation = 20.0;
+	strcpy(first_panel->text, "it's me!");
+	FBBUFFER = first_panel->text;
+
+	/* chicken scheme */
 	CHICKEN_run((void *)C_toplevel);
 
-	/* Initialize FreeType library */
+	/* initialize FreeType library */
 	if (FT_Init_FreeType(&ft)) {
 		fprintf(stderr, "could not init freetype\n");
 		return 1;
@@ -134,19 +68,20 @@ main()
 		fprintf(stderr, "could not load font\n");
 		return 1;
 	}
-
 	FT_Set_Pixel_Sizes(face, 0, 48);
 	g = face->glyph;
 
-	window = initializeContext();
-	glfwSetKeyCallback(window, keyCallback);
+	/* initialize GLFW */
+	window = init_context();
+	glfwSetKeyCallback(window, key_callback);
 
-	initializeWorldRenderer();
-	initializeTextRenderer();
-	initializeFramebuffer();
+	/* using globals here... yuck */
+	init_world_renderer();
+	init_text_renderer();
+	init_framebuffer();
 
-	//kmMat4RotationAxisAngle(&firstPanel->model, &(kmVec3){0.0f, 0.0f, 1.0f}, firstPanel->rotation);
-	kmMat4Translation(&firstPanel->model, firstPanel->x, firstPanel->y, firstPanel->z);
+	// kmMat4RotationAxisAngle(&first_panel->model, &(kmVec3){1.0f, 0.0f, 0.0f}, first_panel->rotation);
+	kmMat4Translation(&first_panel->model, first_panel->x, first_panel->y, first_panel->z);
 
 	printf("> ");
 	fflush(stdout);
@@ -155,25 +90,26 @@ main()
 		now = glfwGetTime();
 		glfwPollEvents();
 
-		/* Check for REPL input */
+		/* check for REPL input */
 		if (poll(&stdin_poll, 1, 0) == 1) {
-			fgets(replbuf, 511, stdin);
-			status = CHICKEN_eval_string_to_string(replbuf, replresultbuf, 511);
+			fgets(repl_buf, 511, stdin);
+			status = CHICKEN_eval_string_to_string(repl_buf, repl_result_buf, 511);
 			if (status) {
-				printf("%s\n> ", replresultbuf);
+				printf("%s\n> ", repl_result_buf);
 			} else {
-				CHICKEN_get_error_message(replresultbuf, 511);
-				printf("err: %s", replresultbuf);
+				CHICKEN_get_error_message(repl_result_buf, 511);
+				printf("err: %s", repl_result_buf);
 			}
 			fflush(stdout);
 		}
 
+		/* clear the screen */
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		/* Draw the world */
-		glUseProgram(worldShaderProgram);
-		glBindVertexArray(worldvao);
+		/* draw the world */
+		glUseProgram(world_shader_program);
+		glBindVertexArray(world_vao);
 		glEnable(GL_DEPTH_TEST);
 
 		kmMat4RotationAxisAngle(&model, &(kmVec3){0.0f, 0.0f, 1.0f}, now);
@@ -192,7 +128,7 @@ main()
 		else
 			output = "B";
 
-		renderText(output, -1 + 8 * sx, 0.5 - 50 * sy, sx, sy);
+		render_text(output, -1 + 8 * sx, 0.5 - 50 * sy, sx, sy);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
@@ -201,7 +137,8 @@ main()
 		sx = 2.0 / 2300.0;
 		sy = 2.0 / 600.0;
 
-		renderText(firstPanel->text, -1, 1 - 50.0 * sy, sx, sy);
+		render_text(first_panel->text, -1, 1 - 50.0 * sy, sx, sy);
+		render_text(first_panel->text, -1, 1 - 100.0 * sy, sx, sy);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -214,14 +151,14 @@ main()
 
 		GL_CHECK_ERROR();
 
-		kmMat4 fbmodelmat;
+		// kmMat4 fbmodelmat;
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texColorBuffer);
 
-		int i;
-		for (i = 0; i < PANELS.used; i++) {
-			glUniformMatrix4fv(fbModel, 1, GL_FALSE, PANELS.array[i].model.mat);
+		/* render each panel */
+		for(panel *p = root_panel->next; p; p = p->next) {
+			glUniformMatrix4fv(fbModel, 1, GL_FALSE, p->model.mat);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 
@@ -236,6 +173,7 @@ main()
 		glfwSwapBuffers(window);
 	}
 
+	free_panels(root_panel);
 	glfwTerminate();
 	return 0;
 }
