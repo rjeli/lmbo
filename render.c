@@ -12,22 +12,22 @@
 #include "macros.h"
 
 GLuint worldvbo, textvbo;
-GLuint world_vao, textvao, fbvao;
+GLuint world_vao, textvao, framebuffer_vao;
 GLuint textShaderProgram;
 GLuint world_shader_program;
-GLuint fbProgram;
+GLuint framebuffer_program;
 
-GLuint texColorBuffer;
+GLuint tex_color_buffer;
 
 GLint uniTextColor;
 GLint uniModel;
 
-GLint fbModel;
+GLint framebuffer_model;
 
-GLint uniFBTime;
+GLint uniform_framebuffer_time;
 GLuint tex;
 
-GLuint frameBuffer;
+GLuint framebuffer;
 
 FT_Face face;
 FT_GlyphSlot g;
@@ -80,13 +80,13 @@ GLfloat cubeVertices[] = {
 };
 
 GLfloat quadVertices[] = {
-	-1.66f,  0.5f,  0.0f, 0.0f, 1.0f,
-	 1.66f,  0.5f,  0.0f, 1.0f, 1.0f,
-	 1.66f, -0.5f,  0.0f, 1.0f, 0.0f,
+	-1.f,  0.5f,  0.0f, 0.0f, 1.0f,
+	 1.f,  0.5f,  0.0f, 1.0f, 1.0f,
+	 1.f, -0.5f,  0.0f, 1.0f, 0.0f,
 
-	 1.66f, -0.5f,  0.0f, 1.0f, 0.0f,
-	-1.66f, -0.5f,  0.0f, 0.0f, 0.0f,
-	-1.66f,  0.5f,  0.0f, 0.0f, 1.0f
+	 1.f, -0.5f,  0.0f, 1.0f, 0.0f,
+	-1.f, -0.5f,  0.0f, 0.0f, 0.0f,
+	-1.f,  0.5f,  0.0f, 0.0f, 1.0f
 };
 
 char *
@@ -257,11 +257,11 @@ init_world_renderer()
 
 	kmMat4LookAt(&view, 
 			/* Camera */
-			&(kmVec3){0.0f, -0.5f, 3.0f}, 
+			&(kmVec3){0.0f, 0.0f, 2.0f}, 
 			/* Center */
 			&(kmVec3){0.0f, 0.0f, 0.0f}, 
 			/* Up */
-			&(kmVec3){0.0f, 0.0f, 1.0f});
+			&(kmVec3){0.0f, 1.0f, 0.0f});
 
 	glUniformMatrix4fv(uniView, 1, GL_FALSE, view.mat);
 	kmMat4PerspectiveProjection(&proj, 45.0f, 800.0f / 600.0f, 1.0f, 10.0f);
@@ -270,9 +270,8 @@ init_world_renderer()
 }
 
 void 
-render_text(char *text, float x, float y, float sx, float sy)
+render_char(char ch, float x, float y, float sx, float sy)
 {
-	char *p;
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -286,41 +285,39 @@ render_text(char *text, float x, float y, float sx, float sy)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	for (p = text; *p; p++) {
-		if (FT_Load_Char(face, *p, FT_LOAD_RENDER))
-			continue;
-
-		glTexImage2D(
-				GL_TEXTURE_2D,
-				0,
-				GL_RED,
-				g->bitmap.width,
-				g->bitmap.rows,
-				0,
-				GL_RED,
-				GL_UNSIGNED_BYTE,
-				g->bitmap.buffer
-				);
-
-		float x2 = x + g->bitmap_left * sx;
-		float y2 = -y - g->bitmap_top * sy;
-		float w = g->bitmap.width * sx;
-		float h = g->bitmap.rows * sy;
-
-		GLfloat box[4][4] = {
-			{x2, -y2, 0, 0},
-			{x2 + w, -y2, 1, 0},
-			{x2, -y2 - h, 0, 1},
-			{x2 + w, -y2 - h, 1, 1},
-		};
-
-		glBindBuffer(GL_ARRAY_BUFFER, textvbo);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(box), box, GL_DYNAMIC_DRAW);
-	  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-		x += (g->advance.x >> 6) * sx;
-		y += (g->advance.y >> 6) * sy;
+	if (FT_Load_Char(face, ch, FT_LOAD_RENDER)){
+		fprintf(stderr, "could not load char %c", ch);
+		return;
 	}
+
+	glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RED,
+			g->bitmap.width,
+			g->bitmap.rows,
+			0,
+			GL_RED,
+			GL_UNSIGNED_BYTE,
+			g->bitmap.buffer
+			);
+
+	float x2 = x + g->bitmap_left * sx;
+	float y2 = -y - g->bitmap_top * sy;
+	float w = g->bitmap.width * sx;
+	float h = g->bitmap.rows * sy;
+
+	GLfloat box[4][4] = {
+		{x2, -y2, 0, 0},
+		{x2 + w, -y2, 1, 0},
+		{x2, -y2 - h, 0, 1},
+		{x2 + w, -y2 - h, 1, 1},
+	};
+
+	glBindBuffer(GL_ARRAY_BUFFER, textvbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(box), box, GL_DYNAMIC_DRAW);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
 	glUseProgram(0);
 	GL_CHECK_ERROR();
 }
@@ -336,45 +333,45 @@ init_framebuffer()
 	glBindBuffer(GL_ARRAY_BUFFER, fbvbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
 
-	glGenVertexArrays(1, &fbvao);
+	glGenVertexArrays(1, &framebuffer_vao);
 
-	loadShaders("fb.vert", "fb.frag", &fbVertShader, &fbFragShader, &fbProgram);
-	glUseProgram(fbProgram);
+	loadShaders("fb.vert", "fb.frag", &fbVertShader, &fbFragShader, &framebuffer_program);
+	glUseProgram(framebuffer_program);
 
-	glBindVertexArray(fbvao);
+	glBindVertexArray(framebuffer_vao);
 
-	GLint fbposAttrib = glGetAttribLocation(fbProgram, "position");
+	GLint fbposAttrib = glGetAttribLocation(framebuffer_program, "position");
 	glEnableVertexAttribArray(fbposAttrib);
 	glVertexAttribPointer(fbposAttrib, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
 
-	GLint fbtexAttrib = glGetAttribLocation(fbProgram, "texcoord");
+	GLint fbtexAttrib = glGetAttribLocation(framebuffer_program, "texcoord");
 	glEnableVertexAttribArray(fbtexAttrib);
 	glVertexAttribPointer(fbtexAttrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *)(3 * sizeof(GLfloat)));
 
-	GLint uniProj = glGetUniformLocation(fbProgram, "proj");
-	GLint uniView = glGetUniformLocation(fbProgram, "view");
-	fbModel = glGetUniformLocation(fbProgram, "model");
-	uniFBTime = glGetUniformLocation(fbProgram, "time");
+	GLint uniProj = glGetUniformLocation(framebuffer_program, "proj");
+	GLint uniView = glGetUniformLocation(framebuffer_program, "view");
+	framebuffer_model = glGetUniformLocation(framebuffer_program, "model");
+	uniform_framebuffer_time = glGetUniformLocation(framebuffer_program, "time");
 
 	glUniformMatrix4fv(uniView, 1, GL_FALSE, view.mat);
 	glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.mat);
-	glUniform1i(glGetUniformLocation(fbProgram, "texFramebuffer"), 0);
+	glUniform1i(glGetUniformLocation(framebuffer_program, "texFramebuffer"), 0);
 
 	/* Create frame buffer */
-	glGenFramebuffers(1, &frameBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+	glGenFramebuffers(1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
 	/* Create texture to hold color buffer */
-	glGenTextures(1, &texColorBuffer);
+	glGenTextures(1, &tex_color_buffer);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+	glBindTexture(GL_TEXTURE_2D, tex_color_buffer);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_color_buffer, 0);
 
 	/* Create Renderbuffer Object to hold depth and stencil buffers */
 	/* Commented out because it causes texture corruption

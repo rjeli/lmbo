@@ -19,25 +19,25 @@ void init_world_renderer();
  * x,y on [-1,1]
  *
  */
-void render_text(char *text, float x, float y, float sx, float sy);
+void render_char(char ch, float x, float y, float sx, float sy);
 
 void init_framebuffer();
 
 extern GLuint worldvbo, textvbo;
-extern GLuint world_vao, textvao, fbvao;
+extern GLuint world_vao, textvao, framebuffer_vao;
 extern GLuint textShaderProgram;
 extern GLuint world_shader_program;
-extern GLuint fbProgram;
+extern GLuint framebuffer_program;
 
-extern GLuint texColorBuffer;
+extern GLuint tex_color_buffer;
 
 extern GLint uniTextColor;
 extern GLint uniModel;
-extern GLint fbModel;
+extern GLint framebuffer_model;
 
-extern GLint uniFBTime;
+extern GLint uniform_framebuffer_time;
 extern GLuint tex;
-extern GLuint frameBuffer;
+extern GLuint framebuffer;
 
 extern FT_Face face;
 extern FT_GlyphSlot g;

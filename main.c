@@ -23,7 +23,7 @@
 char *FBBUFFER;
 extern void key_callback(GLFWwindow *, int, int, int, int);
 
-static kmMat4 model;
+//static kmMat4 model;
 
 int 
 main()
@@ -80,7 +80,8 @@ main()
 	init_text_renderer();
 	init_framebuffer();
 
-	// kmMat4RotationAxisAngle(&first_panel->model, &(kmVec3){1.0f, 0.0f, 0.0f}, first_panel->rotation);
+	// kmMat4RotationAxisAngle
+	// (&first_panel->model, &(kmVec3){1.0f, 0.0f, 0.0f}, first_panel->rotation);
 	kmMat4Translation(&first_panel->model, first_panel->x, first_panel->y, first_panel->z);
 
 	printf("> ");
@@ -112,61 +113,50 @@ main()
 		glBindVertexArray(world_vao);
 		glEnable(GL_DEPTH_TEST);
 
-		kmMat4RotationAxisAngle(&model, &(kmVec3){0.0f, 0.0f, 1.0f}, now);
+		// this is the rotating quad in background
+		//kmMat4RotationAxisAngle(&model, &(kmVec3){0.0f, 0.0f, 1.0f}, now);
+		//glUniformMatrix4fv(uniModel, 1, GL_FALSE, model.mat);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
-		glUniformMatrix4fv(uniModel, 1, GL_FALSE, model.mat);
-
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-
-		/* Draw text */
-		sx = 2.0 / 800.0;
-		sy = 2.0 / 600.0;
-
-		char *output;
-		if((int)now % 2)
-			output = "A";
-		else
-			output = "B";
-
-		render_text(output, -1 + 8 * sx, 0.5 - 50 * sy, sx, sy);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+		/* draw text */
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		sx = 2.0 / 2300.0;
+		sx = 2.0 / 1200.0;
 		sy = 2.0 / 600.0;
 
-		render_text(first_panel->text, -1, 1 - 50.0 * sy, sx, sy);
-		render_text(first_panel->text, -1, 1 - 100.0 * sy, sx, sy);
+		//render_text(first_panel->text, -1, 1 - 50.0 * sy, sx, sy);
+		//render_text(first_panel->text, -1, 1 - 100.0 * sy, sx, sy);
+		render_char('A', -1, 1 - 30.0 * sy, sx, sy);
+		render_char('A', -1, 1 - 60.0 * sy, sx, sy);
+		render_char('A', -1, 1 - 90.0 * sy, sx, sy);
+		render_char('A', -1, 1 - 120.0 * sy, sx, sy);
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		/* Draw framebuffer */
-		glUseProgram(fbProgram);
-		glBindVertexArray(fbvao);
+		/* draw framebuffer */
+		glUseProgram(framebuffer_program);
+		glBindVertexArray(framebuffer_vao);
 		glDisable(GL_DEPTH_TEST);
 
-		glUniform1f(uniFBTime, now);
-
-		GL_CHECK_ERROR();
-
-		// kmMat4 fbmodelmat;
+		glUniform1f(uniform_framebuffer_time, now);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+		glBindTexture(GL_TEXTURE_2D, tex_color_buffer);
 
 		/* render each panel */
 		for(panel *p = root_panel->next; p; p = p->next) {
-			glUniformMatrix4fv(fbModel, 1, GL_FALSE, p->model.mat);
+			glUniformMatrix4fv(framebuffer_model, 1, GL_FALSE, p->model.mat);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}
 
-		//kmMat4RotationAxisAngle(&fbmodelmat, &(kmVec3){0.0f, 0.0f, 1.0f}, now + 0.5);
-
-		//glUniformMatrix4fv(fbModel, 1, GL_FALSE, fbmodelmat.mat);
-
-		//glDrawArrays(GL_TRIANGLES, 0, 6);
+		/* ** How to move the framebuffer (panel) **
+		kmMat4 fbmodelmat;
+		kmMat4RotationAxisAngle(&fbmodelmat, &(kmVec3){0.0f, 0.0f, 1.0f}, now + 0.5);
+		glUniformMatrix4fv(framebuffer_model, 1, GL_FALSE, fbmodelmat.mat);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		*/
 
 		GL_CHECK_ERROR();
 		glUseProgram(0);
