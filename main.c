@@ -158,7 +158,7 @@ main()
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		glUseProgram(framebuffer_program);
-		kmMat4RotationYawPitchRoll(&fb_view_rot, y, (dir-180)*3.14/180, 0);
+		kmMat4RotationYawPitchRoll(&fb_view_rot, y*0.2f, (dir-180)*3.14/100, 0);
 		kmMat4Translation(&fb_view, 0, 0, -3);
 		kmMat4Multiply(&fb_view, &fb_view_rot, &fb_view);
 		glUniformMatrix4fv(uni_fb_view, 1, GL_FALSE, fb_view.mat);

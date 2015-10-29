@@ -28,7 +28,10 @@ free_panels(panel *root)
 void
 panel_model_update(panel *p)
 {
+	kmMat4 trans_mat;
 	kmMat4RotationYawPitchRoll(&p->model, p->xrot, p->yrot, p->zrot);
+	kmMat4Translation(&trans_mat, p->x, p->y, p->z);
+	kmMat4Multiply(&p->model, &p->model, &trans_mat);
 }
 
 void

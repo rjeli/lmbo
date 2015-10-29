@@ -2,6 +2,7 @@
 (use srfi-69)
 (use lolevel)
 (require-extension bind)
+(require-extension dyn-vector)
 (import foreign)
 
 (foreign-declare "#include <GLFW/glfw3.h>")
@@ -15,6 +16,7 @@
 (bind "
 ___abstract struct panel {
 	char *text;
+	unsigned int cursor;
 	float x, y, z;
 	float xrot, yrot, zrot;
 };
@@ -26,8 +28,15 @@ void panel_model_update(panel *);
 (define-foreign-type panel (c-pointer raw-panel))
 (define-foreign-variable root-panel panel "root_panel")
 
+(define *panels* (make-dynvector 0 '()))
+(define *current-panel-index* 0)
+(define (current-panel)
+	(dynvector-ref *panels* *current-panel-index*))
+
 (define (new-panel)
-	(let ((p (add-panel root-panel)))
+	(let ((p (add-panel root-panel))
+				(n-panels (dynvector-length *panels*)))
+		(set! (panel-cursor p) 0)
 		(set! (panel-x p) 0.0)
 		(set! (panel-y p) 0.0)
 		(set! (panel-z p) 0.0)
@@ -35,6 +44,8 @@ void panel_model_update(panel *);
 		(set! (panel-yrot p) 0.0)
 		(set! (panel-zrot p) 0.0)
 		(panel-model-update p)
+		(dynvector-set! *panels* n-panels p)
+		(set! *current-panel-index* n-panels)
 		p))
 
 (define (move-panel p x y z)
@@ -59,17 +70,6 @@ void panel_model_update(panel *);
 (define set-window-should-close
 	(foreign-lambda void "glfwSetWindowShouldClose" (c-pointer glfw-window) int))
 
-;(define (new-panel)
-	;(add_panel root-panel))
-
-;; pointer to beginning of buffer
-;(define fptr 
-	;(foreign-value "FBBUFFER" (c-pointer char)))
-
-;; put numbers in so we see screen size
-;;(move-memory! 
-	;"0000000000111111111122222222223333333333444444444455555555566666666667777777777" fptr)
-
 (define (eval-string s)
 	(eval (with-input-from-string s read)))
 
@@ -84,10 +84,21 @@ void panel_model_update(panel *);
 (define (get-bound-fn k)
 	(hash-table-ref/default *keybindings* k #f))
 
-; ESC to quit
-(bind-key ESC (lambda (win) (set-window-should-close win 1)))
+(define *ctrl-keybindings* (make-hash-table))
+(define (bind-ctrl-key ch fn)
+	(hash-table-set! *ctrl-keybindings* ch fn))
+(define (get-bound-ctrl-fn k)
+	(hash-table-ref/default *ctrl-keybindings* k #f))
 
-;(bind (key #\A) (lambda (w) (pointer-u8-set! fptr (key #\A))))
+; ESC to quit
+(bind-key ESC 
+  (lambda (win) (set-window-should-close win 1)))
+
+(bind-ctrl-key (key #\N) 
+  (lambda (w) 
+		(display "got C-n") (new-panel)))
+
+;;(bind-ctrl-key (key #\A) (lambda (w) (pointer-u8-set! fptr (key #\A))))
 
 (define-external 
 	;; called by GLFW on every keypress
@@ -98,7 +109,9 @@ void panel_model_update(panel *);
 								(int mods)) void
 
 	(when (= action GLFW_PRESS)
-		(let ((bound-fn (get-bound-fn key-code)))
+		(let ((bound-fn (if (= 0 (bitwise-and mods GLFW_MOD_CONTROL))
+											 (get-bound-fn key-code)
+											 (get-bound-ctrl-fn key-code))))
 			(when bound-fn (bound-fn window))))
 	)
 
@@ -115,8 +128,6 @@ void panel_model_update(panel *);
 		;(let ((fn (hash-table-ref/default *key-table* key #f)))
 		;	(if fn (fn window)))
 		;(flush-output)))
-
-;; (bind-key 256 (lambda (w) (set-window-should-close w 1)))
 
 (display "autoload.scm loaded\n")
 (return-to-host)
