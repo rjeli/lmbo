@@ -1,1 +1,1 @@
-extern char *FBBUFFER;
+extern panel *root_panel;

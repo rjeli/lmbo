@@ -4,32 +4,21 @@ INC=-I/opt/X11/include/freetype2 -Iinc
 LIBS=-lglfw3 -lglew -lchicken -lkazmath -lfreetype
 FRAMEWORKS=-framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo
 
-SOURCES=$(wildcard *.c)
-HEADERS=$(wildcard inc/*.h)
+SOURCES=main.c panel.c render.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=main
 
-DOC_OPTS=--output html --language c
-
-$(EXECUTABLE): $(OBJECTS) autoload
+$(EXECUTABLE): $(OBJECTS) scm
 	$(CC) $(LIBS) $(FRAMEWORKS) $(OBJECTS) autoload.o -o $@
 
 .c.o:
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 
-autoload:
+scm:
 	csc -c -embedded $(INC) autoload.scm
 
 .PHONY:
-doc:
-	cldoc generate $(CFLAGS) $(INC) -- $(DOC_OPTS) $(SOURCES) $(HEADERS)
-
-.PHONY:
-serve:
-	cldoc serve html
-
-.PHONY:
-all: $(SOURCES) $(EXECUTABLE)
+all: $(EXECUTABLE)
 
 .PHONY:
 re: all
@@ -38,3 +27,4 @@ re: all
 .PHONY:
 clean:
 	rm *.o
+	rm autoload.c

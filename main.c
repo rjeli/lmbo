@@ -7,6 +7,7 @@
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <chicken.h>
 #include <kazmath/kazmath.h>
@@ -20,23 +21,25 @@
 #include "render.h"
 #include "panel.h"
 
-char *FBBUFFER;
+panel *root_panel;
 extern void key_callback(GLFWwindow *, int, int, int, int);
+
+float CHAR_WIDTH = 25.0;
+float CHAR_HEIGHT = 35.0;
 
 //static kmMat4 model;
 
 int 
 main()
 {
-	/* variables for rendering */
 	GLFWwindow *window;
 	float now, sx, sy;
+	sx = 2.0 / 1200.0;
+	sy = 2.0 / 600.0;
 
-	/* panel linked list */
-	panel *root_panel = malloc(sizeof(panel));
+	root_panel = malloc(sizeof(panel));
 	root_panel->next = NULL;
 
-	/* for the scheme REPL */
 	char repl_buf[512];
 	char repl_result_buf[512];
 	int status;
@@ -45,21 +48,8 @@ main()
 		.events = POLLIN | POLLRDBAND | POLLRDNORM | POLLPRI 
 	};
 
-	/* font library */
 	FT_Library ft;
 
-	panel *first_panel = add_panel(root_panel);
-	first_panel->x = 0.0;
-	first_panel->y = 0.0;
-	first_panel->z = 0.0;
-	first_panel->rotation = 20.0;
-	strcpy(first_panel->text, "it's me!");
-	FBBUFFER = first_panel->text;
-
-	/* chicken scheme */
-	CHICKEN_run((void *)C_toplevel);
-
-	/* initialize FreeType library */
 	if (FT_Init_FreeType(&ft)) {
 		fprintf(stderr, "could not init freetype\n");
 		return 1;
@@ -80,9 +70,7 @@ main()
 	init_text_renderer();
 	init_framebuffer();
 
-	// kmMat4RotationAxisAngle
-	// (&first_panel->model, &(kmVec3){1.0f, 0.0f, 0.0f}, first_panel->rotation);
-	kmMat4Translation(&first_panel->model, first_panel->x, first_panel->y, first_panel->z);
+	CHICKEN_run((void *)C_toplevel);
 
 	printf("> ");
 	fflush(stdout);
@@ -118,35 +106,38 @@ main()
 		//glUniformMatrix4fv(uniModel, 1, GL_FALSE, model.mat);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
-		/* draw text */
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		sx = 2.0 / 1200.0;
-		sy = 2.0 / 600.0;
-
-		//render_text(first_panel->text, -1, 1 - 50.0 * sy, sx, sy);
-		//render_text(first_panel->text, -1, 1 - 100.0 * sy, sx, sy);
-		render_char('A', -1, 1 - 30.0 * sy, sx, sy);
-		render_char('A', -1, 1 - 60.0 * sy, sx, sy);
-		render_char('A', -1, 1 - 90.0 * sy, sx, sy);
-		render_char('A', -1, 1 - 120.0 * sy, sx, sy);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		/* draw framebuffer */
-		glUseProgram(framebuffer_program);
-		glBindVertexArray(framebuffer_vao);
-		glDisable(GL_DEPTH_TEST);
-
-		glUniform1f(uniform_framebuffer_time, now);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, tex_color_buffer);
-
-		/* render each panel */
 		for(panel *p = root_panel->next; p; p = p->next) {
+			/* draw text to framebuffer */
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+			glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			int r = 1;
+			int c = 0;
+			for(unsigned int i = 0; i < strlen(p->text); i++) {
+				if(p->text[i] == '\n') {
+					r++;
+					c = 0;
+					continue;
+				}
+				render_char(p->text[i], -1 + c * CHAR_WIDTH * sx, 1 - r * CHAR_HEIGHT * sy, sx, sy);
+				c++;
+			}
+
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			/* draw framebuffer */
+			glUseProgram(framebuffer_program);
+			glBindVertexArray(framebuffer_vao);
+			glDisable(GL_DEPTH_TEST);
+
+			glUniform1f(uniform_framebuffer_time, now);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, tex_color_buffer);
+
+			/* render each panel */
 			glUniformMatrix4fv(framebuffer_model, 1, GL_FALSE, p->model.mat);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
 		}

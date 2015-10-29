@@ -173,7 +173,7 @@ init_context()
 
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-	GLFWwindow* window = glfwCreateWindow(800, 600, "Autismacs", NULL, NULL); 
+	GLFWwindow* window = glfwCreateWindow(800, 600, "3macs", NULL, NULL); 
 	glfwMakeContextCurrent(window);
 
 	glewExperimental = GL_TRUE;

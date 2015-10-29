@@ -1,9 +1,47 @@
 (use format)
 (use srfi-69)
 (use lolevel)
+(require-extension bind)
 (import foreign)
+
 (foreign-declare "#include <GLFW/glfw3.h>")
+(foreign-declare "#include <kazmath/kazmath.h>")
+(foreign-declare "#include \"panel.h\"")
 (foreign-declare "#include \"main.h\"")
+
+(bind-options
+	mutable-fields: #t
+	default-renaming: "")
+(bind "
+___abstract struct panel {
+	char *text;
+	float x, y, z;
+	float xrot, yrot, zrot;
+};
+typedef struct panel panel;
+panel *add_panel(panel *);
+void panel_model_update(panel *);
+")
+(define-foreign-type raw-panel "panel")
+(define-foreign-type panel (c-pointer raw-panel))
+(define-foreign-variable root-panel panel "root_panel")
+
+(define (new-panel)
+	(let ((p (add-panel root-panel)))
+		(set! (panel-x p) 0.0)
+		(set! (panel-y p) 0.0)
+		(set! (panel-z p) 0.0)
+		(set! (panel-xrot p) 0.0)
+		(set! (panel-yrot p) 0.0)
+		(set! (panel-zrot p) 0.0)
+		(panel-model-update p)
+		p))
+
+(define (move-panel p x y z)
+	(set! (panel-x p) x)
+	(set! (panel-y p) y)
+	(set! (panel-z p) z)
+	(panel-model-update p))
 
 ;; glfw constants
 (define GLFW_RELEASE 0)
@@ -21,9 +59,12 @@
 (define set-window-should-close
 	(foreign-lambda void "glfwSetWindowShouldClose" (c-pointer glfw-window) int))
 
+;(define (new-panel)
+	;(add_panel root-panel))
+
 ;; pointer to beginning of buffer
-(define fptr 
-	(foreign-value "FBBUFFER" (c-pointer char)))
+;(define fptr 
+	;(foreign-value "FBBUFFER" (c-pointer char)))
 
 ;; put numbers in so we see screen size
 ;;(move-memory! 
@@ -38,15 +79,15 @@
 (define (key k) (char->integer k))
 
 (define *keybindings* (make-hash-table))
-(define (bind ch fn)
+(define (bind-key ch fn)
 	(hash-table-set! *keybindings* ch fn))
 (define (get-bound-fn k)
 	(hash-table-ref/default *keybindings* k #f))
 
-(bind ESC (lambda (win) (set-window-should-close win 1)))
+; ESC to quit
+(bind-key ESC (lambda (win) (set-window-should-close win 1)))
 
-(bind (key #\A) (lambda (w) (pointer-u8-set! fptr (key #\A))))
-(bind (key #\B) (lambda (w) (pointer-u8-set! fptr (key #\B))))
+;(bind (key #\A) (lambda (w) (pointer-u8-set! fptr (key #\A))))
 
 (define-external 
 	;; called by GLFW on every keypress
@@ -78,5 +119,4 @@
 ;; (bind-key 256 (lambda (w) (set-window-should-close w 1)))
 
 (display "autoload.scm loaded\n")
-
 (return-to-host)
