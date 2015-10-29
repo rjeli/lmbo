@@ -1,8 +1,3 @@
-#ifndef __macros_h
-#define __macros_h
-
-#include <stdlib.h>
-
 /* debugging macros from Maciej A. Czyzewski */
 
 #define note(S, ...) fprintf(stderr,                                     \
@@ -37,5 +32,3 @@
 		}\
 	}\
 } while(0)
-
-#endif
