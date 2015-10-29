@@ -27,6 +27,7 @@ GLint framebuffer_model;
 GLint uniform_framebuffer_time;
 GLuint tex;
 
+GLint uni_fb_view;
 GLuint framebuffer;
 
 FT_Face face;
@@ -349,11 +350,11 @@ init_framebuffer()
 	glVertexAttribPointer(fbtexAttrib, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *)(3 * sizeof(GLfloat)));
 
 	GLint uniProj = glGetUniformLocation(framebuffer_program, "proj");
-	GLint uniView = glGetUniformLocation(framebuffer_program, "view");
+	uni_fb_view = glGetUniformLocation(framebuffer_program, "view");
 	framebuffer_model = glGetUniformLocation(framebuffer_program, "model");
 	uniform_framebuffer_time = glGetUniformLocation(framebuffer_program, "time");
 
-	glUniformMatrix4fv(uniView, 1, GL_FALSE, view.mat);
+	glUniformMatrix4fv(uni_fb_view, 1, GL_FALSE, view.mat);
 	glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.mat);
 	glUniform1i(glGetUniformLocation(framebuffer_program, "texFramebuffer"), 0);
 

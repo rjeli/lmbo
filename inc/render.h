@@ -33,6 +33,8 @@ extern GLuint tex_color_buffer;
 
 extern GLint uniTextColor;
 extern GLint uniModel;
+
+extern GLint uni_fb_view;
 extern GLint framebuffer_model;
 
 extern GLint uniform_framebuffer_time;

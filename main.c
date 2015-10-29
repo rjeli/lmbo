@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <chicken.h>
 #include <kazmath/kazmath.h>
 #include <ft2build.h>
@@ -21,13 +27,23 @@
 #include "render.h"
 #include "panel.h"
 
+#define PORT 5005
+#define SRV_IP "0.0.0.0"
+
 panel *root_panel;
 extern void key_callback(GLFWwindow *, int, int, int, int);
 
 float CHAR_WIDTH = 25.0;
 float CHAR_HEIGHT = 35.0;
 
-//static kmMat4 model;
+struct sensor_data
+{
+	char d1[4];
+	float accel[3];
+	char d2[36];
+	double dir;
+	char d3[51];
+} __attribute__((packed));
 
 int 
 main()
@@ -65,6 +81,26 @@ main()
 	window = init_context();
 	glfwSetKeyCallback(window, key_callback);
 
+	int s;
+	struct pollfd fd;
+	struct sockaddr_in si_other;
+	unsigned int dlen, slen=sizeof(si_other);
+	char buf[128];
+	struct sensor_data data;
+	struct sockaddr_in si_me;
+	if((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1)
+		errn("socket");
+
+	memset((char *)&si_me, 0, sizeof(si_me));
+	si_me.sin_family = AF_INET;
+	si_me.sin_port = htons(PORT);
+	si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+	if(bind(s, (struct sockaddr *)&si_me, sizeof(si_me))==-1)
+		errn("bind");
+
+	fd.fd = s;
+	fd.events = POLLIN;
+
 	/* using globals here... yuck */
 	init_world_renderer();
 	init_text_renderer();
@@ -74,6 +110,10 @@ main()
 
 	printf("> ");
 	fflush(stdout);
+
+	kmMat4 fb_view, fb_view_rot;
+	float x, y, z;
+	double dir = 0.0f;
 
 	while (!glfwWindowShouldClose(window)) {
 		now = glfwGetTime();
@@ -92,6 +132,17 @@ main()
 			fflush(stdout);
 		}
 
+		while (poll(&fd, 1, 0) == 1) {
+			dlen=recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&si_other, &slen);
+			if(dlen != sizeof(struct sensor_data))
+				errn("data incorrect size");
+			memcpy(&data, buf, dlen);
+			x = data.accel[0];
+			y = data.accel[1];
+			z = data.accel[2];
+			dir = data.dir;
+		}
+
 		/* clear the screen */
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -105,6 +156,13 @@ main()
 		//kmMat4RotationAxisAngle(&model, &(kmVec3){0.0f, 0.0f, 1.0f}, now);
 		//glUniformMatrix4fv(uniModel, 1, GL_FALSE, model.mat);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		glUseProgram(framebuffer_program);
+		kmMat4RotationYawPitchRoll(&fb_view_rot, y, (dir-180)*3.14/180, 0);
+		kmMat4Translation(&fb_view, 0, 0, -3);
+		kmMat4Multiply(&fb_view, &fb_view_rot, &fb_view);
+		glUniformMatrix4fv(uni_fb_view, 1, GL_FALSE, fb_view.mat);
+		glUseProgram(0);
 
 		for(panel *p = root_panel->next; p; p = p->next) {
 			/* draw text to framebuffer */
@@ -127,19 +185,24 @@ main()
 
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+		GL_CHECK_ERROR();
 			/* draw framebuffer */
-			glUseProgram(framebuffer_program);
 			glBindVertexArray(framebuffer_vao);
 			glDisable(GL_DEPTH_TEST);
 
+		GL_CHECK_ERROR();
+			glUseProgram(framebuffer_program);
 			glUniform1f(uniform_framebuffer_time, now);
 
+		GL_CHECK_ERROR();
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, tex_color_buffer);
 
+		GL_CHECK_ERROR();
 			/* render each panel */
 			glUniformMatrix4fv(framebuffer_model, 1, GL_FALSE, p->model.mat);
 			glDrawArrays(GL_TRIANGLES, 0, 6);
+		GL_CHECK_ERROR();
 		}
 
 		/* ** How to move the framebuffer (panel) **
