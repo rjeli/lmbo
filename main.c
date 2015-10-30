@@ -36,6 +36,8 @@ extern void key_callback(GLFWwindow *, int, int, int, int);
 float CHAR_WIDTH = 25.0;
 float CHAR_HEIGHT = 35.0;
 
+int tracking = 0;
+
 struct sensor_data
 {
 	char d1[4];
@@ -143,6 +145,14 @@ main()
 			dir = data.dir;
 		}
 
+		if(!tracking)
+		{
+			x = 0;
+			y = 0;
+			z = 0;
+			dir = 157;
+		}
+
 		/* clear the screen */
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -158,7 +168,7 @@ main()
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		glUseProgram(framebuffer_program);
-		kmMat4RotationYawPitchRoll(&fb_view_rot, y*0.2f, (dir-180)*3.14/100, 0);
+		kmMat4RotationYawPitchRoll(&fb_view_rot, y, (dir-157)*3.14/100, 0);
 		kmMat4Translation(&fb_view, 0, 0, -3);
 		kmMat4Multiply(&fb_view, &fb_view_rot, &fb_view);
 		glUniformMatrix4fv(uni_fb_view, 1, GL_FALSE, fb_view.mat);
@@ -168,7 +178,10 @@ main()
 			/* draw text to framebuffer */
 			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-			glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+			if(p->focused)
+				glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			else
+				glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 			glClear(GL_COLOR_BUFFER_BIT);
 
 			int r = 1;

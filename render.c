@@ -171,8 +171,9 @@ init_context()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_SAMPLES, 4);
 
-	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
 	GLFWwindow* window = glfwCreateWindow(800, 600, "3macs", NULL, NULL); 
 	glfwMakeContextCurrent(window);
@@ -223,7 +224,7 @@ init_text_renderer()
 
 	glUniform1i(uniTex, 1);
 
-	GLfloat white[4] = {1, 0, 0, 1};
+	GLfloat white[4] = {1, 1, 1, 1};
 	glUniform4fv(uniTextColor, 1, white);
 
 	GL_CHECK_ERROR();

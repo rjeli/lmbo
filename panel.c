@@ -1,5 +1,6 @@
 #include <kazmath/kazmath.h>
 #include <stdlib.h>
+#include <string.h>
 #include "panel.h"
 
 panel *
@@ -28,10 +29,10 @@ free_panels(panel *root)
 void
 panel_model_update(panel *p)
 {
-	kmMat4 trans_mat;
-	kmMat4RotationYawPitchRoll(&p->model, p->xrot, p->yrot, p->zrot);
-	kmMat4Translation(&trans_mat, p->x, p->y, p->z);
-	kmMat4Multiply(&p->model, &p->model, &trans_mat);
+	kmMat4 rot_mat;
+	kmMat4RotationYawPitchRoll(&rot_mat, p->xrot, p->yrot, p->zrot);
+	kmMat4Translation(&p->model, p->x, p->y, p->z);
+	kmMat4Multiply(&p->model, &p->model, &rot_mat);
 }
 
 void
@@ -41,4 +42,25 @@ move_panel(panel *p, float x, float y, float z)
 	p->y = y;
 	p->z = z;
 	panel_model_update(p);
+}
+
+void
+panel_add_char(panel *p, char c)
+{
+	p->text[p->cursor] = c;
+	p->text[p->cursor+1] = '\0';
+	p->cursor++;
+}
+
+void
+panel_add_string(panel *p, char *s)
+{
+	strcat(p->text, s);
+	p->cursor += strlen(s);
+}
+
+void
+panel_clear(panel *p)
+{
+	p->text[0] = '\0';
 }
